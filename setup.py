@@ -63,6 +63,7 @@ setuptools.setup(
         'sentence-transformers==2.0.0',
         'mosestokenizer~=1.1',
         'pathos==0.2.8',
+        'pytorch-lightning-spells==0.0.3',
         # for kf:
         'kfserving>=0.5.0',
         # for NED:

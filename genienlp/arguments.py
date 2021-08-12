@@ -318,7 +318,7 @@ def parse_argv(parser):
         '--lr_schedule',
         type=str,
         default='transformer',
-        choices=['transformer', 'constant', 'linear', 'sgd', 'cosine'],
+        choices=['transformer', 'constant', 'linear', 'sgd', 'cosine', 'multi_linear_cosine'],
         help='The learning rate strategy. All of them can be used with or without warmup.',
     )
     parser.add_argument(
