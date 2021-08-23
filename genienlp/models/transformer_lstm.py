@@ -35,6 +35,7 @@ from transformers import AutoConfig, AutoModel, BertConfig, PretrainedConfig, XL
 
 from ..data_utils.numericalizer import TransformerNumericalizer
 from ..model_utils.transformers_utils import BertModelForNER, XLMRobertaModelForNER
+from ..tasks.almond_task import Translate
 from ..util import adjust_language_code
 from .base import GenieModel
 from .identity_encoder import IdentityEncoder
@@ -60,10 +61,9 @@ class TransformerLSTM(GenieModel):
         config = AutoConfig.from_pretrained(encoder_embeddings, cache_dir=args.embeddings)
         args.dimension = config.hidden_size
 
-        # tasks is not passed during initialization only in server mode
-        # call this function after task is recognized
-        if tasks:
-            self.set_generation_output_options(tasks)
+        self._output_scores = any('loss' in task.metrics for task in tasks)
+        self._output_attentions = any(isinstance(task, Translate) for task in tasks)
+        self._output_hidden_states = False
 
         self.src_lang, self.tgt_lang = adjust_language_code(
             config, args.pretrained_model, kwargs.get('src_lang', 'en'), kwargs.get('tgt_lang', 'en')

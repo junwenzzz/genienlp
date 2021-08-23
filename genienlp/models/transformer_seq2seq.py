@@ -35,6 +35,7 @@ from transformers import AutoConfig, AutoModelForSeq2SeqLM, MBartTokenizer, MBar
 
 from ..data_utils.numericalizer import TransformerNumericalizer
 from ..model_utils.transformers_utils import MULTILINGUAL_TOKENIZERS
+from ..tasks.almond_task import Translate
 from ..util import ConfidenceFeatures, adjust_language_code
 from .base import GenieModel
 from .common import LabelSmoothingCrossEntropy
@@ -53,13 +54,10 @@ class TransformerSeq2Seq(GenieModel):
         args.dimension = config.d_model
         self._is_bart_large = self.args.pretrained_model == 'facebook/bart-large'
 
-        # tasks is not passed during initialization only in server mode
-        # call this function after task is recognized
-        if tasks:
-            self.set_generation_output_options(tasks)
-        
-        # only used for Marian models. adjusted language codes passed to numericalizer will be None for models trained on single langauge pairs
-        self.orig_src_lang, self.orig_tgt_lang = kwargs.get('src_lang', 'en'), kwargs.get('tgt_lang', 'en')
+        self._output_scores = any('loss' in task.metrics for task in tasks)
+        self._output_attentions = any(isinstance(task, Translate) for task in tasks)
+        self._output_hidden_states = False
+
         self.src_lang, self.tgt_lang = adjust_language_code(
             config, args.pretrained_model, kwargs.get('src_lang', 'en'), kwargs.get('tgt_lang', 'en')
         )
