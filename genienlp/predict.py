@@ -50,6 +50,7 @@ import torch
 from . import models
 from .arguments import check_and_update_generation_args
 from .calibrate import ConfidenceEstimator
+from .metrics import calculate_and_reduce_metrics
 from .ned.ned_utils import init_ned_model
 from .tasks.registry import get_tasks
 from .util import (
@@ -489,6 +490,7 @@ def run(args, device):
             if len(generation_output.answers) > 0:
                 metrics_to_compute = task.metrics
                 metrics_to_compute += args.extra_metrics
+                metrics_to_compute = [metric for metric in task.metrics if metric not in ['loss']]
                 if args.main_metric_only:
                     metrics_to_compute = [metrics_to_compute[0]]
                 metrics = calculate_and_reduce_metrics(
@@ -509,7 +511,8 @@ def run(args, device):
                                 log_string += f'{score[i]:.3f}, '
                             log_string += '\n'
                         logger.info(log_string)
-                    logger.info(metrics)
+
+                logger.info(metrics)
 
                 task_scores[task].append((len(generation_output.answers), metrics[task.metrics[0]]))
 

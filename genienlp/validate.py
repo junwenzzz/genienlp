@@ -28,9 +28,10 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import copy
+import logging
 import re
 import sys
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 
 import torch
 import ujson
@@ -43,6 +44,8 @@ from .data_utils.progbar import progress_bar
 from .metrics import calculate_and_reduce_metrics
 from .models import TransformerForSequenceClassification, TransformerForTokenClassification
 from .util import GenerationOutput, merge_translated_sentences
+
+logger = logging.getLogger(__name__)
 
 
 def generate_with_model(
@@ -69,7 +72,7 @@ def generate_with_model(
             disable_progbar=disable_progbar,
         )
 
-    if isinstance(model, TransformerForTokenClassification) or isinstance(model, TransformerForSequenceClassification):
+    elif isinstance(model, (TransformerForTokenClassification, TransformerForSequenceClassification)):
         return generate_with_classification_model(
             model, data_iterator, numericalizer, task, original_order=original_order, disable_progbar=disable_progbar
         )
@@ -273,15 +276,20 @@ def generate_with_seq2seq_model_for_dialogue(
                             knowledge[domain].update(msg[0])
                             new_knowledge_text = knowledge2span(knowledge)
 
-                    #### save latest api results
+                    #### save latest api results and constraints
                     bitod_preds[dial_id]["turns"][str(turn_id)]["api"] = new_knowledge_text
+                    bitod_preds[dial_id]["API"][r_en_API_MAP.get(api_name, api_name)] = copy.deepcopy(constraints)
                     ####
 
                     input_text = replace_match(contexts[-1], knowledge_re, new_knowledge_text)
                     input_text = replace_match(input_text, state_re, new_state_text)
 
                 else:
-                    raise ValueError(f'API call should be either yes or no but got {do_api_call}')
+                    logger.error(
+                        f'API call should be either yes or no but got {do_api_call}; seems model is still training, we assume a no'
+                    )
+                    # knowledge is null so just use current input
+                    input_text = contexts[-1]
 
             else:
                 raise ValueError(f'Invalid train_target: {train_target}')
@@ -329,6 +337,10 @@ def generate_with_seq2seq_model_for_dialogue(
         batch_prediction.append([partial_batch_prediction])
 
         predictions += batch_prediction
+
+    #### save last response
+    bitod_preds[dial_id]["turns"][str(turn_id)]["response"] = predictions[-1]
+    ####
 
     with open('bitod_preds.json', 'w') as fout:
         ujson.dump(bitod_preds, fout, indent=2, ensure_ascii=False)
@@ -642,29 +654,14 @@ def generate_with_classification_model(
     return output
 
 
-def print_results(results, num_print):
+def print_results(keys, values, num_print=1):
     print()
-
-    values = list(results.values())
-    num_examples = len(values[0])
-
-    # examples are sorted by length
-    # to get good diversity, get half of examples from second quartile
-    start = int(num_examples / 4)
-    end = start + int(num_print / 2)
-    first_list = [val[start:end] for val in values]
-
-    # and the other half from fourth quartile
-    start = int(3 * num_examples / 4)
-    end = start + num_print - int(num_print / 2)
-    second_list = [val[start:end] for val in values]
-
-    # join examples
-    processed_values = [first + second for first, second in zip(first_list, second_list)]
-
-    for ex_idx in range(len(processed_values[0])):
-        for key_idx, key in enumerate(results.keys()):
-            value = processed_values[key_idx][ex_idx]
+    start = 0
+    end = start + num_print
+    values = [val[start:end] for val in values]
+    for ex_idx in range(len(values[0])):
+        for key_idx, key in enumerate(keys):
+            value = values[key_idx][ex_idx]
             v = value[0] if isinstance(value, list) else value
             print(f'{key:>11}: {repr(v)}')
         print()
@@ -680,20 +677,11 @@ def validate(task, val_iter, model, numericalizer, args, num_print=10):
 
         output = generate_with_model(model, val_iter, numericalizer, task, args)
 
-        validation_outputs = output
-        if task.name == 'bitod' and args.bitod_validation_task != 'all':
-            validation_outputs = GenerationOutput()
-            for i in range(len(output.example_ids)):
-                id_, train_task = output.example_ids[i].rsplit('/', 1)
-                if train_task in args.bitod_validation_task:
-                    validation_outputs.answers.append(output.answers[i])
-                    validation_outputs.predictions.append(output.predictions[i])
-
         # loss is already calculated
-        metrics_to_return = [metric for metric in task.metrics if metric != 'loss']
+        metrics_to_compute = [metric for metric in task.metrics if metric not in ['loss']]
 
         metrics = calculate_and_reduce_metrics(
-            validation_outputs.predictions, validation_outputs.answers, metrics_to_return, args.reduce_metrics, model.tgt_lang
+            output.predictions, output.answers, metrics_to_compute, args.reduce_metrics, model.tgt_lang
         )
 
         results = [output.predictions, output.answers, output.contexts]
