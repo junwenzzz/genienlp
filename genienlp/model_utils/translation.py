@@ -89,14 +89,7 @@ def return_token_word_mapping(tokens, tokenizer):
 
 
 def align_and_replace(
-    src_tokens,
-    tgt_tokens,
-    sample_layer_attention_pooled,
-    src_spans,
-    tgt_lang,
-    tokenizer,
-    remove_output_quotation,
-    date_parser=None,
+    src_tokens, tgt_tokens, tokenizer, tgt_lang, sample_layer_attention_pooled, src_spans, remove_output_quotation
 ):
     src_quotation_symbol = '"'
 
@@ -134,23 +127,14 @@ def align_and_replace(
 
         # translation turned digit into words
         if len(cur_match) == 1 and cur_match[0].isdigit():
-            # int converts arabic digits to english
-            match = int(cur_match[0])
-            if tgt_lang in CONVERTER_CLASSES or tgt_lang[:2] in CONVERTER_CLASSES:
-                expanded_matches.append([num2words(match, lang=tgt_lang, to='cardinal')])
+            converter = None
+            if tgt_lang in CONVERTER_CLASSES:
+                converter = CONVERTER_CLASSES[tgt_lang]
+            elif tgt_lang[:2] in CONVERTER_CLASSES:
+                converter = CONVERTER_CLASSES[tgt_lang[:2]]
 
-            if any(tgt_lang.startswith(lang) for lang in ['fa', 'ar']):
-                match = str(match)
-                src_numbers = NUMBER_MAPPING['en']
-                tgt_numbers = NUMBER_MAPPING['fa']
-                if match in src_numbers:
-                    index = src_numbers.index(match)
-                    tgt_number = tgt_numbers[index]
-                    expanded_matches.append([tgt_number])
-
-        # find translation of dates
-        elif date_parser:
-            expanded_matches.append(date_parser.translate(' '.join(cur_match), settings=Settings()).split(' '))
+            if converter and hasattr(converter, 'str_to_number'):
+                expanded_matches.append([num2words(cur_match[0], lang=tgt_lang, to='cardinal')])
 
         for match in expanded_matches:
             count, beg_indices = count_substring(tgt_words, match)

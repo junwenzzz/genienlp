@@ -404,15 +404,6 @@ def generate_with_seq2seq_model(
     else:
         tgt_lang = model.orig_tgt_lang
 
-    if numericalizer._tokenizer.src_lang:
-        src_lang = numericalizer._tokenizer.src_lang
-    else:
-        src_lang = model.orig_src_lang
-
-    date_parser = default_loader.get_locale(src_lang[:2])
-
-    translate_return_raw_outputs = getattr(args, 'translate_return_raw_outputs', False)
-
     for batch in progress_bar(data_iterator, desc='Generating', disable=disable_progbar):
         batch_size = len(batch.example_id)
         batch_prediction = [[] for _ in range(batch_size)]
@@ -470,12 +461,10 @@ def generate_with_seq2seq_model(
                 cross_attentions = cross_attentions[-1, ...]
 
                 # postprocess prediction ids
-                kwargs = {
-                    'numericalizer': numericalizer,
-                    'cross_attentions': cross_attentions,
-                    'tgt_lang': tgt_lang,
-                    'date_parser': date_parser,
-                }
+                kwargs = {'numericalizer': numericalizer, 'cross_attentions': cross_attentions, 'tgt_lang': tgt_lang}
+                partial_batch_prediction_ids = task.batch_postprocess_prediction_ids(
+                    batch_example_ids, batch.context.value.data, partial_batch_prediction_ids, **kwargs
+                )
 
                 if translate_return_raw_outputs:
                     partial_batch_raw_prediction_ids = partial_batch_prediction_ids
