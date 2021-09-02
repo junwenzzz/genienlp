@@ -41,6 +41,7 @@ from BiToD.evaluate import r_en_API_MAP
 from BiToD.knowledgebase import api
 from BiToD.preprocess import API_MAP, knowledge2span, read_require_slots, state2span
 from BiToD.utils import span2state, state2constraints
+from transformers import MarianTokenizer
 
 from .data_utils.example import NumericalizedExamples, SequentialField
 from .data_utils.progbar import progress_bar
@@ -463,23 +464,15 @@ def generate_with_seq2seq_model(
 
                 # postprocess prediction ids
                 kwargs = {'numericalizer': numericalizer, 'cross_attentions': cross_attentions, 'tgt_lang': tgt_lang}
-                partial_batch_prediction_ids = task.batch_postprocess_prediction_ids(
-                    batch_example_ids, batch.context.value.data, partial_batch_prediction_ids, **kwargs
-                )
-
-                if translate_return_raw_outputs:
-                    partial_batch_raw_prediction_ids = partial_batch_prediction_ids
-
                 partial_batch_prediction_ids, partial_batch_words = task.batch_postprocess_prediction_ids(
                     batch_example_ids, batch.context.value.data, partial_batch_prediction_ids, **kwargs
                 )
 
-            # MarianTokenizer uses two different spm models for encoding source and target languages.
-            # in almond_translate we postprocess text with alignment which produces code-switched sentences.
+            # MarianTokenizer uses two different spm models for encoding source vs target language.
+            # in almond_translate we postprocess text with alignment which gives code-switched sentences.
             # encoding a code-switched sentence with either spm will omit tokens from the other language
-            # so we have to return both the processed and encoded text.
-            # we need to return encoded text too since confidence_features requires ids
-            if isinstance(numericalizer._tokenizer, MarianTokenizer) and partial_batch_words:
+            # so now we will return both the actual processed text and the encoded version
+            if isinstance(numericalizer._tokenizer, MarianTokenizer):
                 partial_batch_prediction = partial_batch_words
             else:
                 if output_confidence_features or output_confidence_scores:
