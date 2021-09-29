@@ -58,13 +58,12 @@ setuptools.setup(
         'termcolor~=1.1',
         'datasets==1.12.1',
         'seqeval==1.2.2',
-        'transformers==4.10.2',
         'dictdiffer~=0.9',
+        'transformers==4.10.3',
         'sentencepiece==0.1.*',
         'sentence-transformers==2.0.0',
         'mosestokenizer~=1.1',
         'pathos==0.2.8',
-        'pytorch-lightning-spells==0.0.3',
         # for kf:
         'kfserving>=0.5.0',
         # for NED:

@@ -63,7 +63,7 @@ class TransformerLSTM(GenieModel):
         # tasks is not passed during initialization only in server mode
         # call this function after task is recognized
         if tasks:
-            self.set_task_dependent_generation_kwargs(tasks)
+            self.set_generation_output_options(tasks)
 
         self.src_lang, self.tgt_lang = adjust_language_code(
             config, args.pretrained_model, kwargs.get('src_lang', 'en'), kwargs.get('tgt_lang', 'en')
