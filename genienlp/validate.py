@@ -301,6 +301,9 @@ def generate_with_seq2seq_model_for_dialogue(
                             constraints=[constraints],
                             lang=numericalizer._tokenizer.src_lang,
                         )
+                    except ValueError as e:
+                        if ' is required but was not provided.' in str(e):
+                            do_api_call = 'no'
                     except Exception as e:
                         logger.error(f'Error: {e}')
                         logger.error(
@@ -308,21 +311,22 @@ def generate_with_seq2seq_model_for_dialogue(
                             f' processed_query: {msg[2]}, for turn: {dial_id}/{turn_id}'
                         )
 
-                    if int(msg[1]) <= 0:
-                        logger.warning(
-                            f'Message = No item available for api_name: {api_name}, constraints: {constraints},'
-                            f' processed_query: {msg[2]}, for turn: {dial_id}/{turn_id}'
-                        )
-                        gold_dial_state = span2state(state_re.search(contexts[-1]).group(1).strip(), api_names)
-                        logger.warning(
-                            f'state_diff: {list(dictdiffer.diff(dialogue_state[api_name], gold_dial_state[api_name]))}'
-                        )
+                    if do_api_call == 'yes':
+                        if int(msg[1]) <= 0:
+                            logger.warning(
+                                f'Message = No item available for api_name: {api_name}, constraints: {constraints},'
+                                f' processed_query: {msg[2]}, for turn: {dial_id}/{turn_id}'
+                            )
+                            gold_dial_state = span2state(state_re.search(contexts[-1]).group(1).strip(), api_names)
+                            logger.warning(
+                                f'state_diff: {list(dictdiffer.diff(dialogue_state[api_name], gold_dial_state[api_name]))}'
+                            )
 
-                        new_knowledge_text = f'( {api_name} ) Message = No item available.'
-                    else:
-                        # always choose highest ranking results (having deterministic api results)
-                        knowledge[api_name].update(msg[0])
-                        new_knowledge_text = knowledge2span(knowledge)
+                            new_knowledge_text = f'( {api_name} ) Message = No item available.'
+                        else:
+                            # always choose highest ranking results (having deterministic api results)
+                            knowledge[api_name].update(msg[0])
+                            new_knowledge_text = knowledge2span(knowledge)
 
                     #### save latest api constraints
                     bitod_preds[dial_id]["API"][r_en_API_MAP.get(api_name, api_name)] = copy.deepcopy(constraints)
