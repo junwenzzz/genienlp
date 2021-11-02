@@ -394,7 +394,9 @@ class Translate(NaturalSeq2Seq):
         if len(contexts) > 1:
             examples = []
             for i, text in enumerate(contexts):
-                ex_id, text = self.construct_id2span_mapping(self.name + '/' + example_id + f'@{i}', text, 'context')
+                ex_id = self.name + '/' + example_id + f'@{i}'
+                if self.args.do_alignment:
+                    ex_id, text = self.construct_id2span_mapping(ex_id, text, 'context')
                 examples.append(
                     Example.from_raw(
                         ex_id,
@@ -406,7 +408,9 @@ class Translate(NaturalSeq2Seq):
                     )
                 )
         else:
-            ex_id, context = self.construct_id2span_mapping(self.name + '/' + example_id, context, 'context')
+            ex_id = self.name + '/' + example_id
+            if self.args.do_alignment:
+                ex_id, context = self.construct_id2span_mapping(ex_id, context, 'context')
             examples = Example.from_raw(ex_id, context, question, answer, preprocess=self.preprocess_field, lower=False)
 
         return examples
