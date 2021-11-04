@@ -274,6 +274,11 @@ def check_args(args):
             'Currently example splitting can only be used in pure generation mode. Please use --translate_no_answer and --translate_example_split flags together'
         )
 
+    if 'blenderbot' in args.pretrained_model and args.max_output_length > 128:
+        raise ValueError(
+            f'BlenderBot maximum input/ output length is 128 but max_output_length is set to {args.max_output_length}'
+        )
+
 
 def prepare_data(args, src_lang):
 
