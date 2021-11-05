@@ -228,6 +228,7 @@ def parse_argv(parser):
             'TransformerSeq2Seq',
             'TransformerForTokenClassification',
             'TransformerForSequenceClassification',
+            'TransformerForCausalLM',
         ],
         default='TransformerSeq2Seq',
         help='which model to import',
